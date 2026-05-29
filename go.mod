@@ -1,3 +1,3 @@
-module github.com/gen95mis/go-draft
+module github.com/alkosuv/go-playground
 
-go 1.19
+go 1.25
