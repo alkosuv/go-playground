@@ -1,4 +1,4 @@
-package sorts
+package sort
 
 //go:generate go test -bench=BenchmarkBubble -benchmem
 

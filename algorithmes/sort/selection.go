@@ -1,4 +1,4 @@
-package sorts
+package sort
 
 //go:generate go test -run=^BenchmarkSelection$ -bench="^BenchmarkSelection$"
 
