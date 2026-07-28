@@ -10,7 +10,6 @@ import (
 
 func BenchmarkSelection(b *testing.B) {
 	sizes := []int{10, 100, 1_000, 100_000, 1_000_000}
-	// sizes := []int{10, 100, 1_000}
 
 	for _, size := range sizes {
 		data := algorithmes.GenerateSlice(b, size)
@@ -19,7 +18,7 @@ func BenchmarkSelection(b *testing.B) {
 			b.ResetTimer()
 
 			for b.Loop() {
-				Bubble(data)
+				Selection(data)
 			}
 		})
 	}
