@@ -1,6 +1,7 @@
-package sort
+package sorting
 
-//go:generate go test -bench=BenchmarkBruteForce -benchmem
+//go:generate go test -v -run=.
+//go:generate go test -bench=. -benchmem
 
 // BruteForce – алгоритм линейной сортировки O(N^2)
 func BruteForce(array []int) []int {

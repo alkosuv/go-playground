@@ -1,4 +1,4 @@
-package sort
+package sorting
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"github.com/alkosuv/go-playground/algorithmes"
 )
 
-func BenchmarkBruteForce(b *testing.B) {
+func BenchmarkBubble(b *testing.B) {
 	sizes := []int{10, 100, 1_000, 100_000, 1_000_000}
 
 	for _, size := range sizes {
@@ -18,13 +18,13 @@ func BenchmarkBruteForce(b *testing.B) {
 			b.ResetTimer()
 
 			for b.Loop() {
-				BruteForce(data)
+				Bubble(data)
 			}
 		})
 	}
 }
 
-func TestBruteForce(t *testing.T) {
+func TestBubble(t *testing.T) {
 	// Определяем тестовые сценарии
 	tests := []struct {
 		name     string
@@ -75,7 +75,7 @@ func TestBruteForce(t *testing.T) {
 			inputCopy := make([]int, len(tt.input))
 			copy(inputCopy, tt.input)
 
-			result := BruteForce(inputCopy)
+			result := Bubble(inputCopy)
 
 			if !reflect.DeepEqual(result, tt.expected) {
 				t.Errorf("Провал в тесте '%s':\nОжидали: %v\nПолучили: %v", tt.name, tt.expected, result)

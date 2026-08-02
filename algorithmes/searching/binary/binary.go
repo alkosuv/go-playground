@@ -1,4 +1,7 @@
-package search
+package searching
+
+//go:generate go test -v -run TestBinary
+//go:generate go test -bench=BenchmarkBinary -benchmem
 
 // Binary – алгоритм линейного поиска (O(logN))
 // Возращет индекс массива в случае нахождения target в массиве или -1

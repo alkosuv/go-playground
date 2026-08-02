@@ -1,6 +1,7 @@
-package sort
+package sorting
 
-//go:generate go test -run=^BenchmarkSelection$ -bench="^BenchmarkSelection$"
+//go:generate go test -v -run=.
+//go:generate go test -bench=. -benchmem
 
 // Selection – алгоритм сортировки выбором O(N^2)
 func Selection(array []int) []int {

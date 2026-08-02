@@ -1,6 +1,7 @@
-package sort
+package sorting
 
-//go:generate go test -bench=BenchmarkBubble -benchmem
+//go:generate go test -v -run=.
+//go:generate go test -bench=. -benchmem
 
 // Bubble – алгоритм пузырькой сортировки O(N^2)
 func Bubble(array []int) []int {

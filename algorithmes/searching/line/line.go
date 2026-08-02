@@ -1,4 +1,7 @@
-package search
+package searching
+
+//go:generate go test -v -run=.
+//go:generate go test -bench=. -benchmem
 
 // Line – алгоритм линейного поиска (O(N))
 // Возращет индекс массива в случае нахождения target в массиве или -1
