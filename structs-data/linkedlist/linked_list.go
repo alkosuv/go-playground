@@ -26,6 +26,8 @@ type node struct {
 	value int
 }
 
+// linkedList – односвязанные список.
+// Не подходит работы в конкурентной среде.
 type linkedList struct {
 	head *node // первый элемент (аналог index = 0)
 	tail *node // последний элемент (аналог index = size-1)
