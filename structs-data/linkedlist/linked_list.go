@@ -39,7 +39,7 @@ func New() *linkedList {
 // Get – возращает значение по индексу
 // Сложность алгоритма O(N)
 func (l *linkedList) Get(index int) (int, error) {
-	node, err := l.getNodeAt(index)
+	node, _, err := l.getNodeAt(index)
 	if err != nil {
 		return 0, err
 	}
@@ -55,14 +55,17 @@ func (l *linkedList) Get(index int) (int, error) {
 // Если значение не найдено, то индекс -1
 // Сложность алгоритма O(N)
 func (l *linkedList) Find(value int) int {
-	_, index := l.getNode(value)
+	_, _, index := l.getNode(value)
 	return index
 }
 
 // Contains – проверяет если ли указаное значение в списке
-// TODO
-func (l *linkedList) Contains(valut int) bool {
-	// TODO: Проверить что в списке есть значения
+func (l *linkedList) Contains(value int) bool {
+	node, _, _ := l.getNode(value)
+	if node != nil {
+		return true
+	}
+
 	return false
 }
 
@@ -122,7 +125,7 @@ func (l *linkedList) Insert(index int, value int) error {
 		return nil
 	}
 
-	prevNode, err := l.getNodeAt(index - 1)
+	prevNode, _, err := l.getNodeAt(index - 1)
 	if err != nil {
 		return err
 	}
@@ -147,38 +150,51 @@ func (l *linkedList) Insert(index int, value int) error {
 }
 
 // MoveToFront – перемещает узел в начала списка
-// TODO
-func (l *linkedList) MoveToFront(n *node) {}
+func (l *linkedList) MoveToFront(index int) (bool, error) {
+	// Если перемещаемый индекс указывает на голову, то перемезать не нужно
+	if index == 0 {
+		return false, nil
+	}
+
+	findNode, _, err := l.getNodeAt(index)
+	if err != nil {
+		return false, err
+	}
+
+	if _, err := l.RemoveAt(index); err != nil {
+		return false, err
+	}
+
+	l.Prepend(findNode.value)
+
+	return true, nil
+}
 
 // MoveToBack – перемещает узел в конец списка
-// TODO
-func (l *linkedList) MoveToBack(n *node) {}
+func (l *linkedList) MoveToBack(index int) (bool, error) {
+	// Если перемещаемый индекс указывает на хвост, то перемезать не нужно
+	if index == l.size-1 {
+		return false, nil
+	}
+
+	findNode, _, err := l.getNodeAt(index)
+	if err != nil {
+		return false, err
+	}
+
+	if _, err := l.RemoveAt(index); err != nil {
+		return false, err
+	}
+
+	l.Append(findNode.value)
+
+	return true, nil
+}
 
 // Remove – удаляет указаное значение из списка
 func (l *linkedList) Remove(value int) bool {
-	if l.IsEmpty() {
-		return false
-	}
-
-	var (
-		isFind   bool
-		index    int
-		prevNode *node
-		findNode = l.head
-	)
-
-	for range l.size {
-		if findNode.value == value {
-			isFind = true
-			break
-		}
-
-		prevNode = findNode
-		findNode = findNode.next
-		index++
-	}
-
-	if !isFind {
+	findNode, prevNode, index := l.getNode(value)
+	if index == -1 {
 		return false
 	}
 
@@ -186,38 +202,69 @@ func (l *linkedList) Remove(value int) bool {
 
 	// Сценарий 1: Удаляем самый первый элемент (head)
 	if prevNode == nil {
-		l.head = findNode.next
-		findNode.next = nil
+		l.head, findNode.next = findNode.next, nil
+
 		if l.head == nil {
 			l.tail = nil
 		}
+
 		return true
 	}
 
 	// Сценарий 2: Удаляем самый последний элемент (tail)
 	// size зарение уменьше на 1, поэтому просто сравниваем с index
 	if index == l.size {
-		l.tail = prevNode
-		prevNode.next = nil
+		l.tail, prevNode.next = prevNode, nil
 		return true
 	}
 
 	// Сценарий 3: Удаляем элемент из середины
-	prevNode.next = findNode.next
-	findNode.next = nil
+	prevNode.next, findNode.next = findNode.next, nil
 	return true
 }
 
 // RemoveAt – удаляет значение по index
-// TODO
+// Возравщает значание которое было в узле или ошибку
 func (l *linkedList) RemoveAt(index int) (int, error) {
-	// TODO: Проверить что в списке есть значения
-	return 0, nil
+	findNode, prevNode, err := l.getNodeAt(index)
+	if err != nil {
+		return 0, err
+	}
+
+	l.size--
+	value := findNode.value
+
+	if index == 0 {
+		if l.size == 0 {
+			l.head, l.tail = nil, nil
+			return value, nil
+		}
+
+		node := l.head
+		l.head, node = node.next, nil
+		return value, nil
+	}
+
+	if index == l.size {
+		if l.size == 0 {
+			l.head, l.tail = nil, nil
+			return value, nil
+		}
+
+		l.tail, prevNode.next = prevNode, nil
+		return value, nil
+	}
+
+	prevNode.next, findNode = findNode.next, nil
+
+	return value, nil
 }
 
 // Clear – удаляет все элементы в списке
-// TODO
 func (l *linkedList) Clear() {
+	for l.head != nil {
+		l.RemoveAt(0)
+	}
 }
 
 // Size – возращет количество элементов в списке
@@ -233,33 +280,51 @@ func (l *linkedList) IsEmpty() bool {
 	return false
 }
 
-// getNode – возращает узел по индексу
+// getNode – возращает узел по значению
+// Возращабтся следующие параметры искомый узел, узел перед искомым, индекс узла в списке
+// Узел перед искаомым нужен в некоторсы методов, чтобы в них не дублировать поиск
 // Сложность алгоритма O(N)
-func (l *linkedList) getNode(value int) (*node, int) {
-	findNode := l.head
+func (l *linkedList) getNode(value int) (*node, *node, int) {
+	if l.IsEmpty() {
+		return nil, nil, -1
+	}
+
+	var (
+		prevNode *node
+		findNode = l.head
+	)
+
 	for i := range l.size {
 		if findNode.value == value {
-			return findNode, i
+			return findNode, prevNode, i
 		}
-		findNode = findNode.next
+		prevNode, findNode = findNode, findNode.next
 	}
 
-	return nil, -1
+	return nil, nil, -1
 }
 
-// getNodeAt – возращает узел по индексу
+// getNodeAt – ищет узел по индекс
+// Возращабтся следующие параметры искомый узел, узел перед искомым, ошибка
+// Узел перед искаомым нужен в некоторсы методов, чтобы в них не дублировать поиск
 // Сложность алгоритма O(N)
-func (l *linkedList) getNodeAt(index int) (*node, error) {
-	// 1. Проверить что index не выходи за границы массива
-	// 2. Перемещаться по узлам (head -> tail), пока не найдём нужный индекс
+func (l *linkedList) getNodeAt(index int) (*node, *node, error) {
 	if index >= l.size || index < 0 {
-		return nil, ErrIndexOutOfBound
+		return nil, nil, ErrIndexOutOfBound
 	}
 
-	findNode := l.head
+	if l.IsEmpty() {
+		return nil, nil, nil
+	}
+
+	var (
+		prevNode *node
+		findNode = l.head
+	)
+
 	for range index {
-		findNode = findNode.next
+		prevNode, findNode = findNode, findNode.next
 	}
 
-	return findNode, nil
+	return findNode, prevNode, nil
 }

@@ -1,6 +1,7 @@
 package linkedlist
 
 import (
+	"errors"
 	"testing"
 )
 
@@ -440,18 +441,118 @@ func TestRemove(t *testing.T) {
 }
 
 func TestRemoveAt(t *testing.T) {
-	list := New()
-	list.Append(10)
-	list.Append(20)
+	// Сценарий 1: Удаление единственного элемента в списке
+	t.Run("Remove single element at index 0", func(t *testing.T) {
+		list := New()
+		list.Append(10)
 
-	val, err := list.RemoveAt(0)
-	if err != nil || val != 10 {
-		t.Errorf("Ожидалось удаление элемента 10, получили %v (ошибка: %v)", val, err)
-	}
+		val, err := list.RemoveAt(0)
+		if err != nil {
+			t.Fatalf("Не ожидали ошибку: %v", err)
+		}
+		if val != 10 {
+			t.Errorf("Ожидали значение 10, получили %d", val)
+		}
+		if list.Size() != 0 {
+			t.Errorf("Ожидали размер 0, получили %d", list.Size())
+		}
+		// Проверяем, что список полностью очистился внутри
+		if list.head != nil || list.tail != nil {
+			t.Error("После удаления единственного элемента head и tail должны быть nil")
+		}
+	})
 
-	if list.Size() != 1 {
-		t.Errorf("Ожидался размер 1, получили %d", list.Size())
-	}
+	// Сценарий 2: Удаление головы из списка с несколькими элементами (ваш исходный тест)
+	t.Run("Remove head from multiple elements", func(t *testing.T) {
+		list := New()
+		list.Append(10)
+		list.Append(20)
+		list.Append(30)
+
+		val, err := list.RemoveAt(0)
+		if err != nil || val != 10 {
+			t.Fatalf("Ожидали 10 без ошибок, получили %d (ошибка: %v)", val, err)
+		}
+		if list.Size() != 2 {
+			t.Errorf("Ожидали размер 2, получили %d", list.Size())
+		}
+		// Проверяем, что голова сдвинулась на следующий элемент
+		if list.head == nil || list.head.value != 20 {
+			t.Errorf("Новая голова должна быть 20, получили %v", list.head)
+		}
+	})
+
+	// Сценарий 3: Удаление хвоста (последнего элемента)
+	t.Run("Remove tail element", func(t *testing.T) {
+		list := New()
+		list.Append(10)
+		list.Append(20)
+		list.Append(30)
+
+		val, err := list.RemoveAt(2)
+		if err != nil {
+			t.Fatalf("Не ожидали ошибку при удалении хвоста: %v", err)
+		}
+		if val != 30 {
+			t.Errorf("Ожидали значение 30, получили %d", val)
+		}
+		if list.Size() != 2 {
+			t.Errorf("Ожидали размер 2, получили %d", list.Size())
+		}
+
+		// КРИТИЧЕСКАЯ ПРОВЕРКА: Проверяем, корректно ли перестроился хвост
+		if list.tail == nil || list.tail.value != 20 {
+			t.Errorf("Новый хвост должен быть 20, получили %v", list.tail)
+		}
+		// Тот самый баг: узел 20 больше не должен ссылаться на удаленный узел 30!
+		if list.tail.next != nil {
+			t.Error("У нового хвоста поле next должно быть строго nil, иначе список зациклится или утечет память")
+		}
+	})
+
+	// Сценарий 4: Удаление элемента из середины
+	t.Run("Remove middle element", func(t *testing.T) {
+		list := New()
+		list.Append(10)
+		list.Append(20)
+		list.Append(30)
+
+		val, err := list.RemoveAt(1) // Удаляем 20
+		if err != nil || val != 20 {
+			t.Fatalf("Ожидали 20 без ошибок, получили %d (ошибка: %v)", val, err)
+		}
+		if list.Size() != 2 {
+			t.Errorf("Ожидали размер 2, получили %d", list.Size())
+		}
+
+		// Проверяем, что связи восстановились напрямую (10 -> 30)
+		val0, _ := list.Get(0)
+		val1, _ := list.Get(1)
+		if val0 != 10 || val1 != 30 {
+			t.Errorf("Ожидали структуру 10 -> 30, получили %d -> %d", val0, val1)
+		}
+	})
+
+	// Сценарий 5: Попытка удаления по невалидным индексам
+	t.Run("Remove out of bounds", func(t *testing.T) {
+		list := New()
+		list.Append(10) // размер = 1
+
+		// Отрицательный индекс
+		if _, err := list.RemoveAt(-1); err == nil {
+			t.Error("Ожидали ошибку для индекса -1")
+		}
+
+		// Индекс равен размеру (такого элемента нет, индексы 0..size-1)
+		if _, err := list.RemoveAt(1); err == nil {
+			t.Error("Ожидали ошибку для индекса равного размеру списка")
+		}
+
+		// Индекс сильно больше размера
+		if _, err := list.RemoveAt(99); err == nil {
+			t.Error("Ожидали ошибку для индекса 99")
+		}
+	})
 }
 
 func TestContainsAndFind(t *testing.T) {
@@ -486,135 +587,260 @@ func TestClear(t *testing.T) {
 	}
 }
 
-// Тест для метода MoveToFront
 func TestMoveToFront(t *testing.T) {
-	t.Run("Перемещение из середины в начало", func(t *testing.T) {
-		l := New()
-		l.Append(10)
-		l.Append(20) // Этот узел будем перемещать
-		l.Append(30)
+	// Сценарий 1: Проверка невалидных индексов
+	t.Run("Out of bounds index", func(t *testing.T) {
+		list := New()
+		list.Append(10) // size = 1
 
-		n2 := findNodeByValue(t, l, 20)
-		if n2 == nil {
-			t.Fatal("Тестовый узел со значением 20 не найден в списке")
+		// Отрицательный индекс
+		moved, err := list.MoveToFront(-1)
+		if !errors.Is(err, ErrIndexOutOfBound) || moved {
+			t.Errorf("Ожидали ошибку ErrIndexOutOfBound и moved=false, получили: moved=%t, err=%v", moved, err)
 		}
 
-		l.MoveToFront(n2)
-
-		if l.head != n2 {
-			t.Errorf("Ожидалась новая голова со значением %v, получили %v", 20, l.head.value)
-		}
-		if l.head.next == nil || l.head.next.value != 10 {
-			t.Error("После новой головы должен идти элемент 10")
-		}
-		if l.tail == nil || l.tail.value != 30 {
-			t.Error("Хвост списка не должен был измениться и должен быть равен 30")
+		// Индекс равен размеру списка
+		moved, err = list.MoveToFront(1)
+		if !errors.Is(err, ErrIndexOutOfBound) || moved {
+			t.Errorf("Ожидали ошибку ErrIndexOutOfBound и moved=false, получили: moved=%t, err=%v", moved, err)
 		}
 	})
 
-	t.Run("Перемещение хвоста в начало", func(t *testing.T) {
-		l := New()
-		l.Append(10)
-		l.Append(20)
-		l.Append(30) // Хвост, который будем перемещать
+	// Сценарий 2: Элемент уже находится в начале списка (индекс 0)
+	t.Run("Element already at front", func(t *testing.T) {
+		list := New()
+		list.Append(10)
+		list.Append(20)
 
-		n3 := findNodeByValue(t, l, 30)
-
-		l.MoveToFront(n3)
-
-		if l.head != n3 {
-			t.Errorf("Хвост не стал головой")
+		moved, err := list.MoveToFront(0)
+		if err != nil {
+			t.Fatalf("Не ожидали ошибку: %v", err)
 		}
-		if l.tail == nil || l.tail.value != 20 {
-			t.Errorf("Новым хвостом должен был стать элемент 20")
+		if moved {
+			t.Error("Ожидали moved=false, так как элемент и так был в начале")
 		}
-		if l.tail.next != nil {
-			t.Error("У нового хвоста next должен быть nil")
+		if list.head.value != 10 {
+			t.Errorf("Голова списка должна остаться 10, получили %d", list.head.value)
+		}
+		if list.Size() != 2 {
+			t.Errorf("Размер списка не должен измениться, получили %d", list.Size())
 		}
 	})
 
-	t.Run("Перемещение узла, который уже в начале", func(t *testing.T) {
-		l := New()
-		l.Append(10)
-		l.Append(20)
+	// Сценарий 3: Перемещение хвоста (последнего элемента) в начало списка
+	t.Run("Move tail to front", func(t *testing.T) {
+		list := New()
+		list.Append(10)
+		list.Append(20)
+		list.Append(30) // Текущий хвост (индекс 2)
 
-		n1 := findNodeByValue(t, l, 10)
+		moved, err := list.MoveToFront(2)
+		if err != nil {
+			t.Fatalf("Не ожидали ошибку: %v", err)
+		}
+		if !moved {
+			t.Error("Ожидали moved=true, так как хвост должен был переместиться")
+		}
 
-		l.MoveToFront(n1)
+		// Проверяем структуру: теперь должно быть 30 -> 10 -> 20
+		if list.head == nil || list.head.value != 30 {
+			t.Errorf("Новой головой должно стать 30, получили %v", list.head)
+		}
+		if list.tail == nil || list.tail.value != 20 {
+			t.Errorf("Новым хвостом должно стать 20, получили %v", list.tail)
+		}
+		if list.tail.next != nil {
+			t.Error("У нового хвоста поле next должно быть строго nil")
+		}
+		if list.Size() != 3 {
+			t.Errorf("Размер списка должен остаться 3, получили %d", list.Size())
+		}
+	})
 
-		if l.head != n1 {
-			t.Error("Голова списка изменилась, хотя не должна была")
+	// Сценарий 4: Перемещение элемента из середины в начало
+	t.Run("Move middle element to front", func(t *testing.T) {
+		list := New()
+		list.Append(10) // idx 0
+		list.Append(20) // idx 1 — перемещаем этот узел
+		list.Append(30) // idx 2
+
+		moved, err := list.MoveToFront(1)
+		if err != nil {
+			t.Fatalf("Не ожидали ошибку: %v", err)
+		}
+		if !moved {
+			t.Error("Ожидали moved=true")
+		}
+
+		// Ожидаемая структура после перемещения: 20 -> 10 -> 30
+		expected := []int{20, 10, 30}
+		for i, exp := range expected {
+			val, _ := list.Get(i)
+			if val != exp {
+				t.Errorf("На индексе %d ожидали %d, получили %d", i, exp, val)
+			}
+		}
+
+		// Проверяем, что хвост остался нетронутым (30)
+		if list.tail == nil || list.tail.value != 30 {
+			t.Errorf("Хвост должен остаться 30, получили %v", list.tail)
+		}
+	})
+
+	// Сценарий 5: Перемещение конкретного дубликата (работа по индексам)
+	t.Run("Move specific duplicate by index", func(t *testing.T) {
+		list := New()
+		list.Append(40) // idx 0
+		list.Append(50) // idx 1
+		list.Append(40) // idx 2 — перемещаем ИМЕННО этот дубликат
+		list.Append(60) // idx 3
+
+		moved, err := list.MoveToFront(2)
+		if err != nil {
+			t.Fatalf("Не ожидали ошибку: %v", err)
+		}
+		if !moved {
+			t.Fatal("Ожидали moved=true")
+		}
+
+		// Ожидаемая структура: 40 (из idx 2) -> 40 (из idx 0) -> 50 -> 60
+		expected := []int{40, 40, 50, 60}
+		for i, exp := range expected {
+			val, _ := list.Get(i)
+			if val != exp {
+				t.Errorf("На индексе %d ожидали %d, получили %d", i, exp, val)
+			}
 		}
 	})
 }
 
-// Тест для метода MoveToBack
 func TestMoveToBack(t *testing.T) {
-	t.Run("Перемещение из середины в конец", func(t *testing.T) {
-		l := New()
-		l.Append(10)
-		l.Append(20) // Этот узел будем перемещать
-		l.Append(30)
+	// Сценарий 1: Проверка невалидных индексов
+	t.Run("Out of bounds index", func(t *testing.T) {
+		list := New()
+		list.Append(10) // size = 1
 
-		n2 := findNodeByValue(t, l, 20)
-
-		l.MoveToBack(n2)
-
-		if l.tail != n2 {
-			t.Errorf("Ожидался новый хвост со значением %v, получили %v", 20, l.tail.value)
+		// Отрицательный индекс
+		moved, err := list.MoveToBack(-1)
+		if !errors.Is(err, ErrIndexOutOfBound) || moved {
+			t.Errorf("Ожидали ошибку ErrIndexOutOfBound и moved=false, получили: moved=%t, err=%v", moved, err)
 		}
-		if l.head == nil || l.head.value != 10 {
-			t.Error("Голова списка не должна была измениться и должна быть равна 10")
-		}
-		if n2.next != nil {
-			t.Error("У нового хвоста next должен быть nil")
+
+		// Индекс равен размеру списка
+		moved, err = list.MoveToBack(1)
+		if !errors.Is(err, ErrIndexOutOfBound) || moved {
+			t.Errorf("Ожидали ошибку ErrIndexOutOfBound и moved=false, получили: moved=%t, err=%v", moved, err)
 		}
 	})
 
-	t.Run("Перемещение головы в конец", func(t *testing.T) {
-		l := New()
-		l.Append(10) // Голова, которую будем перемещать
-		l.Append(20)
-		l.Append(30)
+	// Сценарий 2: Элемент уже находится в конце списка (индекс size-1)
+	t.Run("Element already at back", func(t *testing.T) {
+		list := New()
+		list.Append(10)
+		list.Append(20) // Текущий tail (индекс 1)
 
-		n1 := findNodeByValue(t, l, 10)
-
-		l.MoveToBack(n1)
-
-		if l.tail != n1 {
-			t.Errorf("Голова не стала хвостом")
+		moved, err := list.MoveToBack(1)
+		if err != nil {
+			t.Fatalf("Не ожидали ошибку: %v", err)
 		}
-		if l.head == nil || l.head.value != 20 {
-			t.Errorf("Новой головой должен был стать элемент 20")
+		if moved {
+			t.Error("Ожидали moved=false, так как элемент и так был в конце")
+		}
+		if list.tail.value != 20 {
+			t.Errorf("Хвост списка должен остаться 20, получили %d", list.tail.value)
+		}
+		if list.Size() != 2 {
+			t.Errorf("Размер списка не должен измениться, получили %d", list.Size())
+		}
+	})
+
+	// Сценарий 3: Перемещение головы (index 0) в самый конец списка
+	t.Run("Move head to back", func(t *testing.T) {
+		list := New()
+		list.Append(10) // Текущая голова (индекс 0)
+		list.Append(20)
+		list.Append(30)
+
+		moved, err := list.MoveToBack(0)
+		if err != nil {
+			t.Fatalf("Не ожидали ошибку: %v", err)
+		}
+		if !moved {
+			t.Error("Ожидали moved=true, так как голова должна была переместиться")
+		}
+
+		// Ожидаем структуру: 20 -> 30 -> 10
+		if list.head == nil || list.head.value != 20 {
+			t.Errorf("Новой головой должно стать 20, получили %v", list.head)
+		}
+		if list.tail == nil || list.tail.value != 10 {
+			t.Errorf("Новым хвостом должно стать 10, получили %v", list.tail)
+		}
+		// КРИТИЧЕСКАЯ ПРОВЕРКА: узел 10 стал новым хвостом, его next обязан быть nil
+		if list.tail.next != nil {
+			t.Error("У нового хвоста поле next должно быть строго nil, иначе список зациклится")
+		}
+		if list.Size() != 3 {
+			t.Errorf("Размер списка должен остаться 3, получили %d", list.Size())
 		}
 	})
 
-	t.Run("Перемещение узла, который уже в конце", func(t *testing.T) {
-		l := New()
-		l.Append(10)
-		l.Append(20)
+	// Сценарий 4: Перемещение элемента из середины в самый конец
+	t.Run("Move middle element to back", func(t *testing.T) {
+		list := New()
+		list.Append(10) // idx 0
+		list.Append(20) // idx 1 — перемещаем этот узел
+		list.Append(30) // idx 2
 
-		n2 := findNodeByValue(t, l, 20)
+		moved, err := list.MoveToBack(1)
+		if err != nil {
+			t.Fatalf("Не ожидали ошибку: %v", err)
+		}
+		if !moved {
+			t.Error("Ожидали moved=true")
+		}
 
-		l.MoveToBack(n2)
+		// Ожидаемая структура после перемещения: 10 -> 30 -> 20
+		expected := []int{10, 30, 20}
+		for i, exp := range expected {
+			val, _ := list.Get(i)
+			if val != exp {
+				t.Errorf("На индексе %d ожидали %d, получили %d", i, exp, val)
+			}
+		}
 
-		if l.tail != n2 {
-			t.Error("Хвост списка изменился, хотя не должен был")
+		// Проверяем корректность обновления хвоста
+		if list.tail == nil || list.tail.value != 20 {
+			t.Errorf("Хвост должен стать 20, получили %v", list.tail)
+		}
+		if list.tail.next != nil {
+			t.Error("У поля tail.next должен быть nil")
 		}
 	})
-}
 
-// findNodeByValue – Вспомогательная функция для тестов, чтобы найти узел по значению.
-// Так как ваш Append не возвращает узел, мы найдем его перебором прямо в тесте.
-func findNodeByValue(t *testing.T, l *linkedList, value int) *node {
-	t.Helper()
+	// Сценарий 5: Перемещение конкретного дубликата в конец
+	t.Run("Move specific duplicate by index to back", func(t *testing.T) {
+		list := New()
+		list.Append(50) // idx 0 — перемещаем ИМЕННО этот дубликат
+		list.Append(60) // idx 1
+		list.Append(50) // idx 2
+		list.Append(70) // idx 3
 
-	curr := l.head
-	for curr != nil {
-		if curr.value == value {
-			return curr
+		moved, err := list.MoveToBack(0)
+		if err != nil {
+			t.Fatalf("Не ожидали ошибку: %v", err)
 		}
-		curr = curr.next
-	}
-	return nil
+		if !moved {
+			t.Fatal("Ожидали moved=true")
+		}
+
+		// Ожидаемая структура: 60 -> 50 (который был на idx 2) -> 70 -> 50 (ушедший в хвост)
+		expected := []int{60, 50, 70, 50}
+		for i, exp := range expected {
+			val, _ := list.Get(i)
+			if val != exp {
+				t.Errorf("На индексе %d ожидали %d, получили %d", i, exp, val)
+			}
+		}
+	})
 }
